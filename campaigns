@@ -1,1 +1,91 @@
 
+pragma solidity ^0.4.7;
+
+contract campaignfactory{
+    address[] public deployedCampaigns ;
+    
+    function createCampaign(uint minimum) public{
+        address newCampaign = new Campaign(minimum , msg.sender);
+        deployedCampaigns.push(newCampaign);
+    }
+    
+    function getDeployedCampaigns() public view returns(address[]){
+        return deployedCampaigns ;
+    }
+    
+    
+}
+contract Campaign{
+    
+    struct Request{
+        string description ;
+        uint value ;
+        address recepient;
+        bool complete ;
+        uint approvalCount ;
+        mapping (address => bool) approvals ;
+    }
+    
+    
+    address public manager ;
+    uint public minContribution;
+      uint public approversCount;
+   // address[] public approvers ;
+   mapping (address => bool) public approvers ;
+    Request[] public requests ;
+    
+    //Modifiers
+    modifier restricted(){
+        require ( msg.sender == manager);
+        _;
+    }
+    
+    //Constructor function
+    constructor (uint minimum , address managerIn) public{
+        manager = managerIn ;
+        minContribution = minimum ;
+    }
+    
+    function contribute() public payable{
+        require(msg.value > minContribution);
+        approvers[msg.sender] = true ;
+        approversCount ++ ;
+       // approvers.push(msg.sender);
+    }
+    
+    function createRequest(string description , uint value , address recepient) 
+    public restricted{
+       // require ( msg.sender == manager)
+       Request memory newrequest = Request({
+           description : description ,
+           value : value,
+           recepient : recepient,
+           complete : false,
+           approvalCount : 0
+       }
+       );
+        requests.push(newrequest);
+        
+    }
+    
+    function approveReuest (uint index) public {
+        Request storage curreRequest = requests[index] ;
+        require ( approvers[msg.sender]);
+        require ( ! curreRequest.approvals[msg.sender]);
+        
+        curreRequest.approvals[msg.sender] =  true ;
+        curreRequest.approvalCount ++ ;
+    }
+    
+    function finalizeRequest ( uint index) public restricted{
+        require( ! requests[index].complete);
+        require(  requests[index].approvalCount > (approversCount/2));
+        requests[index].recepient.transfer( requests[index].value);
+        
+        requests[index].complete = true ;
+        
+        
+    }
+    
+    
+}
